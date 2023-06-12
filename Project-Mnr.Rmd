@@ -1,0 +1,339 @@
+---
+title: "FINAL PROJECT"
+author: "Priya Marla, Susmita Madineni, Muneer Ahmed, Lokesh Tangella"
+date: "2023-05-27"
+output: pdf_document
+---
+
+## Contents
+
+1. Introduction
+2. Data
+3. Analysis
+4. Conclusion
+
+## 1 Introduction
+
+
+The insurance claim dataset contains insightful information related to insurance claims giving us an in-depth look into demographic patterns of those who are claiming it. The demographic information contains information like the age, gender and other health related paramters such as blood pressure etc. of a patient. Based on these parameters how much insurance amount is claimed by that patient is captured too. This information allows to performed supervised learning on model such as linear regression etc and use this model to predict the insurance claim of new patients based on their demographic patterns as close as possible. These kinds of models can help the insurance agencies/companies to make wiser decisions when considering potential customers for their services. Moreover, this information can inform public policy by allowing for more targeted support and identify the patients who are in most need of the insurance and vulnerable.
+
+
+## 2 Data
+
+Let's import the required libraries below: 
+
+
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(knitr)
+require(mosaic)
+library(rapport)
+library(ggplot2)
+library(lattice)
+library(stats)
+```
+
+### 2.1 Reading data
+
+
+The dataset is stored in form of comma seperated values(csv) in a file named insurance_data.csv. This file is imported in the below cell: 
+
+
+```{r}
+#reading
+initial_insurance <- read.csv("./insurance_data.csv")
+```
+
+### 2.2 Attribute Information
+
+
+The data set we have used contains the following columns:
+
+  * **PatientID:** This is an identifier for the person and contains 1340 records of people.
+  
+  * **Age:** This is the age of the person in question.The age of the patients ranges from 18 to 60 years.
+  
+  * **Gender:**	This is the gender of the person in question.
+  
+  * **BMI:** This is the Body Mass Index(weight/height^2) of the person in question.The body mass index (BMI) of the patients ranges from 16 to 53.1.
+  
+  * **Bloodpressure:** This is the Blood Pressure of the person recorded during the examination and ranges from 80 to 140.
+  
+  * **Diabetic:** This is an indicator variable, if the person has diabetic or not. 
+  
+  * **Children:** This indicates number of children a person has and ranges from 0 to 5.
+  
+  * **Smoker:** This is an indicator of if the person smokes or not.
+  
+  * **Region:** This is the region from which the person is.
+  
+  * **Claim:** This is the claims made by of the person. The minimum claim is 1122, the 25th percentile is 4720, the median is 9370, the mean is 13253, the 75th percentile is 16604, and the maximum claim is 63770.
+  
+
+
+Note: The null values in the age column and empty strings in region column indicate that the data is unidentified.
+
+```{r}
+#summary
+summary(initial_insurance)
+dim(initial_insurance)
+```
+
+
+
+### 2.3 Cleaning Data
+
+We need to clean the data before we perform any analysis,tests on it. We have taken the following steps:
+
+1) We have removed the index, children and patientID column as they don't have any effect on our analysis. The index and patientID are kind of unique identifiers of each patient and has no effect on the insurance claim, while no.of children does not inform about the patients demographic details hence it is removed too.
+
+2) We have removed all the rows which contained null values for any of the columns as this you not give us a complete picture when we analyse the data.
+
+3) Similarly we have removed the empty strings. 
+
+
+```{r}
+# removing index and children columns
+insurance <- initial_insurance %>% select(-c(PatientID, index, children))
+
+# removing null values rows
+insurance <- na.omit(insurance)
+
+#removed empty string
+insurance <- insurance[insurance$region != "", ]
+
+#cleaned data statistics
+dim(insurance)
+summary(insurance)
+```
+
+
+After cleaning the data the following have changed:
+
+    The dataset now contains 1332 records of people.
+
+    The dataset contains information on the claim amounts. The minimum claim is 1122, the 25th percentile is 4760, the median is 9413, the mean is 13325, the 75th percentile is 16781, and the maximum claim is 63770.
+
+These changes can be attributed to removing the empty values.
+
+## 3 Analysis
+
+### 3.1 Linear regression
+
+Paired Scatter Plots:
+
+```{r}
+analysis <- insurance %>% select(-c(gender,diabetic,smoker,region))
+pairs(analysis)
+```
+
+From the above paid scatter plot, we can see that there is a slight relation between blood pressure and the amount of claims made.
+
+#### Bloodpressure vs Claim
+
+```{r}
+m4 <- lm(claim ~ bloodpressure , data=insurance)
+summary(m4)
+cor.test(insurance$bloodpressure, insurance$claim, method = "pearson")
+xyplot(claim ~ bloodpressure, data=insurance, type=c("p", "r"), main="Scatterplot of Bloodpressure vs Claim")
+xyplot(resid(m4) ~ fitted(m4), data=insurance, type=c("p","r"), main="Residual vs Fitted of Bloodpressure vs Claim", xlab = "fitted(Bloodpressure vs Claim)", ylab = "residue(Bloodpressure vs Claim)")
+histogram(~residuals(m4), main = "Histogram for residuals")
+```
+
+**Assumptions:**
+
+* **Linearity**: The relationship between blood pressure and claim is moderately linear and positively correlated. 
+* **Normal errors**: From the histogram of the residuals, we can say that it has a normal distribution and there seems to be few outliers 
+* **Equal Variance**: From the Residual vs fitted plot, we can see that the data points are around zero, hence assuming equal variance
+* **Independence**: The data points are independent as each person has his own data. 
+
+From the summary R-squared = 0.2822, which is less than 0.3, thus this is weak model.
+Whereas correlation coefficient is 0.5312 which is greater than 0.5, thus blood pressure vs claim has moderate linear positive correlation i.e if the independent variable blood pressure increases, the dependent variable claim also increases sometimes.
+
+
+#### All columns vs claim
+
+```{r}
+
+m1 <- lm(claim ~ bloodpressure+bmi+age+region+diabetic+smoker+gender , data=insurance)
+m2 <- lm(claim ~ diabetic+smoker+bloodpressure , data=insurance)
+m3 <- lm(claim ~ smoker , data=insurance)
+
+```
+
+```{r}
+summary(m1)
+summary(m2)
+summary(m3)
+```
+
+
+
+Based on the above models m1, m2, m3, The column smoker impacts the claim amount majorly than any other demographic details of a given patient. we can see this from the R-squared value for the linear model for smoker vs claim. Another observation supporting this statement is that the R-squared value increases only slightly when the claim is made to be dependent on smoker + some other columns(demographic details). Consider the below plot analzing the insurance claimed by patients who smoke vs who do not smoke. 
+
+
+```{r}
+favstats (~claim |smoker, data=insurance)
+histogram (~claim |smoker, data=insurance)
+```
+
+Based on the above statistics, the average claim value for a non-smoker is 8475.865, and the average claim value for 
+a smoker is 32050.23. The average claim value for a smoker is four times of a non-smoker. This clearly shows that smokers has a high impact on the claim value. 
+
+Histogram for a non-smoker's claims is right-skewed, it means that the data is concentrated towards the left side and has a longer tail towards the right side. This indicates that there are relatively more low claim values and a few high values.
+
+
+
+
+### 3.2 Tests
+
+**Assumptions:**
+
+* **Random and Independent**: The data plots do not follow any patterns and hence we can say it is random. Moreover, the data is of individual persons, hence it is independent of other sample. 
+* **Normally distributed Sample**: From the histogram of residuals vs density above, we can say that the sample is Normal.
+* **Equal Variance**: From paired scatter plot, we can see that the data points are around zero, hence assuming equal variance
+
+
+
+1. Test the hypothesis that the mean blood pressure of the patient is greater than 120 (Normal Human blood pressure).
+
+**Hypothesis:**
+
+
+H0: mean blood pressure is less than or equal to 120
+
+
+Ha: mean blood pressure is greater than 120
+
+**Test Statistics:**
+```{r}
+t.test(~ bloodpressure, data=insurance, alternative="greater", mu=120)
+```
+**p-value:** At significance level 0.05, p-value is greater than alpha (0.05), which means we can't reject null hypothesis and conclude that the mean blood pressure of the patient is less than or equal to 120.
+
+**CI Interval:** 120 lies in the confidence interval range, hence it is consistent will the p-value analysis and we can conclude that mean blood pressure is less than or equal to 120
+
+**Conclusion:** The above analysis suggests that having high blood pressure doesn't indicate high claim rate.
+
+2. Test the hypothesis that the mean bmi is greater than 24.9 (Healthy BMI)
+
+**Hypothesis:**
+
+H0: mean bmi is less than or equal to 24.9
+
+Ha: mean bmi is greater than 24.9
+
+**Test Statistics:**
+```{r}
+t.test(~ bmi, data=insurance, alternative="greater", mu=24.9)
+```
+
+
+**p-value:** At significance level 0.05, p-value is less than alpha (0.05), which means that we can reject the null hypothesis and have enough evidence to conclude that the mean bmi is greater than 24.9.
+
+
+**CI Interval:** 24.9 doesn't lie in the confidence interval range, hence we can reject the null hypothesis and have enough evidence to conclude that the mean bmi is greater than 24.9.
+
+
+**Conclusion:** The above analysis suggests that having high bmi might indicates high claim rate.
+
+
+3. Test the hypothesis that the mean age is greater than 35
+
+**Hypothesis:**
+
+H0: mean age is less than or equal to 35
+
+Ha: mean age is greater than 35
+
+
+**Test Statistics:**
+```{r}
+t.test(~ age, data=insurance, alternative="greater", mu=35)
+```
+
+**p-value:** At significance level 0.05, p-value is less than alpha (0.05), which means that we can reject the null hypothesis and have enough evidence to conclude that the mean age is greater than 35.
+
+**CI Interval:** 35 doesn't lie in the confidence interval range, hence we can reject the null hypothesis and have enough evidence to conclude that the mean bmi is greater than 35.
+
+**Conclusion:** The above analysis suggests that having age greater than 35 might indicates high claim rate.
+
+
+4. Test the hypothesis that difference between the means of claims based on smoker is not equal to zero
+
+**Hypothesis:**
+
+H0: difference in means is equal to zero
+
+Ha: difference in means is not equal to zero
+
+
+**Test Statistics:**
+```{r}
+t.test(claim ~ smoker, data=insurance) # Unpooled
+t.test(claim ~ smoker, var.equal=TRUE, data=insurance)   # Pooled
+bwplot(smoker ~ claim, data=insurance)
+```
+
+**p-value:** At significance level 0.05, p-value is less than alpha (0.05), which means that we can reject the null hypothesis and have enough evidence to conclude that the difference in means is not equal to zero.
+
+**CI Interval:** 35 doesn't lie in the confidence interval range, hence we can reject the null hypothesis and have enough evidence to conclude that the difference in means is not equal to zero.
+
+**Conclusion:** The above analysis suggests that there is difference in mean claims of smokers and non-smokers i.e people who smoke tend to claim more than non-smokers.
+
+
+5. Test the hypothesis that difference between the means of claims based on gender is not equal to zero 
+
+**Hypothesis:**
+
+H0: difference in means is equal to zero
+
+Ha: difference in means is not equal to zero
+
+**Test Statistics:**
+```{r}
+t.test(claim ~ gender, data=insurance) # Unpooled
+t.test(claim ~ gender, var.equal=TRUE, data=insurance)   # Pooled
+bwplot(gender ~ claim, data=insurance)
+```
+
+**p-value:** At significance level 0.05, p-value is less than alpha (0.05), which means that we can reject the null hypothesis and have enough evidence to conclude that the difference in means is not equal to zero.
+
+**CI Interval:** 35 doesn't lie in the confidence interval range, hence we can reject the null hypothesis and have enough evidence to conclude that the difference in means is not equal to zero.
+
+**Conclusion:** The above analysis suggests that there is difference in mean claims based on gender is different i.e one of the gender has more claim than other
+
+
+### 3.3 analysis of variables
+
+```{r}
+# Claim values for region  
+
+favstats (~claim |region, data=insurance)
+
+histogram (~claim |region, data=insurance, xlab = "Claim", 
+     ylab = "Density", 
+     main = "Histogram for claim Vs region")
+
+```
+
+```{r}
+# Claim values - for age greater than 40
+
+favstats(~(insurance%>% filter(age > 40))$claim)
+histogram(~(insurance %>% filter(age > 40))$claim, xlab = "Claim", 
+     ylab = "Density", 
+     main = "Histogram for claim Vs age > 40")
+```
+
+Based on the above histograms, the variables age and region very slightly effects claim. Similarly other columns also show very little impact on the claim amount. On the other hand the smoker columns shows a moderate positive linear relationship with claim.
+
+
+## 4 Conclusion
+
+Based on the above analysis, we can conclude that if a patient is a smoker then his claim amount is expected to be higher than a non smoker with same demographic details. Although other details like blood pressure, bmi etc show a little impact on the insurance, it's overshadowed by the effect shown by smoking. Hence the patients with smoking habit are more vulnerable and the insurance companies can expect more number of and higher claim amount from these patients.
+
+
+
